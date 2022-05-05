@@ -2,10 +2,9 @@ import { useMutation } from "@apollo/client";
 import {
   FormLayout,
   Modal,
-  OptionList,
   TextField,
-  Popover,
-  Button,
+  Spinner,
+  Select,
 } from "@shopify/polaris";
 import { isEmpty } from "lodash";
 import { useState } from "react";
@@ -14,64 +13,79 @@ export default function MetafieldModal({ setActive, id, setMtfData, mtfData }) {
   const [mtfItemData, setMtfItemData] = useState({
     key: "",
     namespace: "",
-    type: "",
+    type: "single_line_text_field",
     value: "",
     ownerId: id,
   });
-  const [errorMessageType, setErrorMessageType] = useState([]);
-  const [errorMessageNamespace, setErrorMessageNamespace] = useState([]);
-  const [errorMessageKey, setErrorMessageKey] = useState([]);
-  const [errorMessageValue, setErrorMessageValue] = useState([]);
-  const [popoverActive, setPopoverActive] = useState(false);
+  const [errorMessageValue, setErrorMessageValue] = useState("");
+  const [errorMessageNamespace, setErrorMessageNamespace] = useState("");
+  const [errorMessageKey, setErrorMessageKey] = useState("");
+  const [loading, setLoading] = useState(false);
   const handleClose = () => setActive(false);
   const toggleActive = () => setActive((prev) => !prev);
 
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState("single_line_text_field");
 
-  const togglePopoverActive = () => setPopoverActive((prev) => !prev);
-
-  const activator = (
-    <Button onClick={togglePopoverActive} disclosure>
-      Options
-    </Button>
-  );
-
-  const handleSetMtfType = (v) => {
+  const handleSelectChange = (v) => {
     setSelected(v);
-    setMtfItemData({ ...mtfItemData, type: v[0] });
-    setPopoverActive(false);
+    setMtfItemData({ ...mtfItemData, type: v });
   };
-
   const [updateMtf] = useMutation(UPDATE_METAFIELDS);
   const handleSave = async () => {
-    try {
-      const { data } = await updateMtf({
-        variables: { metafields: [mtfItemData] },
-      });
-      if (!isEmpty(data.metafieldsSet?.userErrors)) {
-        const err = data.metafieldsSet?.userErrors;
-        setErrorMessageKey(
-          (error) => (error = err.filter((item) => item.field[2] === "key"))
-        );
-        setErrorMessageNamespace(
-          (error) =>
-            (error = err.filter((item) => item.field[2] === "namespace"))
-        );
-        setErrorMessageType(
-          (error) => (error = err.filter((item) => item.field[2] === "type"))
-        );
-        setErrorMessageValue(
-          (error) => (error = err.filter((item) => item.field[2] === "value"))
-        );
-      } else {
-        setMtfData([...mtfData, data.metafieldsSet.metafields[0]]);
-        toggleActive();
+    if (mtfItemData.key.length < 3) {
+      setErrorMessageKey("Key is too short (minimum is 3 characters)");
+      if (mtfItemData.namespace.length >= 3) {
+        setErrorMessageNamespace("");
       }
-    } catch (error) {
-      console.log(error);
+    }
+    if (mtfItemData.namespace.length < 3) {
+      setErrorMessageNamespace(
+        "Namespace is too short (minimum is 3 characters)"
+      );
+      if (mtfItemData.key.length >= 3) {
+        setErrorMessageKey("");
+      }
+    }
+    if (mtfItemData.key.length >= 3 && mtfItemData.namespace.length >= 3) {
+      setErrorMessageKey("");
+      setErrorMessageNamespace("");
+      if (mtfItemData.value.length > 0) {
+        setLoading(true);
+        try {
+          const { data } = await updateMtf({
+            variables: { metafields: [mtfItemData] },
+          });
+          if (!isEmpty(data.metafieldsSet?.userErrors)) {
+            const err = data.metafieldsSet?.userErrors;
+            setErrorMessageValue(
+              err.filter((item) => item.field[2] === "value")[0]?.message
+            );
+          } else {
+            setMtfData([data.metafieldsSet.metafields[0], ...mtfData]);
+            toggleActive();
+          }
+          setLoading(false);
+        } catch (error) {
+          console.log(error);
+        }
+      } else {
+        setErrorMessageValue("Value can't be blank.");
+      }
     }
   };
   const handleChange = (key, v) => setMtfItemData({ ...mtfItemData, [key]: v });
+  const options = [
+    {
+      value: "single_line_text_field",
+      label: "Single line text",
+    },
+    {
+      value: "multi_line_text_field",
+      label: "Muti-line text",
+    },
+    { value: "color", label: "Color" },
+    { value: "json", label: "JSON String" },
+  ];
 
   return (
     <div style={{ height: "500px" }}>
@@ -82,6 +96,7 @@ export default function MetafieldModal({ setActive, id, setMtfData, mtfData }) {
         primaryAction={{
           content: "Add",
           onAction: handleSave,
+          loading: loading && <Spinner size="small" />,
         }}
         secondaryActions={[
           {
@@ -93,44 +108,20 @@ export default function MetafieldModal({ setActive, id, setMtfData, mtfData }) {
         <Modal.Section>
           <FormLayout>
             <FormLayout.Group>
-              <div style={{ display: "flex" }}>
-                <TextField
-                  disabled={true}
-                  label="Type"
-                  value={mtfItemData.type}
-                  error={errorMessageType.slice(-1)[0]?.message}
-                />
-                <div style={{ marginTop: "23px" }}>
-                  <Popover
-                    active={popoverActive}
-                    activator={activator}
-                    onClose={togglePopoverActive}
-                  >
-                    <OptionList
-                      title="Metafield type"
-                      onChange={(v) => handleSetMtfType(v)}
-                      options={[
-                        {
-                          value: "single_line_text_field",
-                          label: "Single line text",
-                        },
-                        {
-                          value: "multi_line_text_field",
-                          label: "Muti-line text",
-                        },
-                        { value: "color", label: "Color" },
-                        { value: "json", label: "JSON String" },
-                      ]}
-                      selected={selected}
-                    />
-                  </Popover>
+              <div style={{ display: "flex", width: "100%" }}>
+                <div style={{ width: "100%" }}>
+                  <Select
+                    label="Metafield type"
+                    options={options}
+                    onChange={(v) => handleSelectChange(v)}
+                    value={selected}
+                  />
                 </div>
               </div>
-
               <TextField
                 label="Namespace"
                 type="text"
-                error={errorMessageNamespace.slice(-1)[0]?.message}
+                error={errorMessageNamespace}
                 value={mtfItemData.namespace}
                 onChange={(v) => handleChange("namespace", v)}
               />
@@ -138,14 +129,16 @@ export default function MetafieldModal({ setActive, id, setMtfData, mtfData }) {
                 label="Key"
                 type="text"
                 value={mtfItemData.key}
-                error={errorMessageKey.slice(-1)[0]?.message}
+                error={errorMessageKey}
                 onChange={(v) => handleChange("key", v)}
               />
               <TextField
-                multiline
+                multiline={
+                  mtfItemData.type === "multi_line_text_field" ? true : false
+                }
                 label="Value"
                 type="text"
-                error={errorMessageValue.slice(-1)[0]?.message}
+                error={errorMessageValue}
                 value={mtfItemData.value}
                 onChange={(v) => handleChange("value", v)}
                 helpText={

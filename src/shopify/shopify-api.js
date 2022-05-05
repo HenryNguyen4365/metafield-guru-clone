@@ -2,6 +2,7 @@ import { gql } from "@apollo/client";
 export const GET_METAFIELD_PRODUCT_BY_ID = gql`
   query getProductMetafields($id: ID!) {
     product(id: $id) {
+      title
       metafields(first: 30) {
         edges {
           node {
@@ -9,6 +10,7 @@ export const GET_METAFIELD_PRODUCT_BY_ID = gql`
             type
             namespace
             key
+            updatedAt
             id
           }
         }
@@ -90,6 +92,7 @@ export const GET_SHOP_METAFIELD = gql`
             value
             type
             id
+            updatedAt
           }
         }
       }
@@ -106,6 +109,66 @@ export const GET_COLLECTION_LIST = gql`
           id
           description
         }
+      }
+    }
+  }
+`;
+
+export const GET_NEXT_PRODUCTS = gql`
+  query queryProducts($first: Int, $after: String, $query: String) {
+    products(first: $first, after: $after, query: $query) {
+      edges {
+        node {
+          metafields(first: 20) {
+            edges {
+              node {
+                value
+              }
+            }
+          }
+          id
+          title
+          featuredImage {
+            originalSrc
+          }
+          handle
+          onlineStoreUrl
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+      }
+    }
+  }
+`;
+
+export const GET_PREV_PRODUCTS = gql`
+  query queryProducts($last: Int, $before: String, $query: String) {
+    products(last: $last, before: $before, query: $query) {
+      edges {
+        node {
+          metafields(first: 20) {
+            edges {
+              node {
+                value
+              }
+            }
+          }
+          id
+          title
+          featuredImage {
+            originalSrc
+          }
+          handle
+          onlineStoreUrl
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
       }
     }
   }

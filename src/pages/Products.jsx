@@ -1,22 +1,63 @@
+import { useLazyQuery } from "@apollo/client";
 import { navigate } from "@reach/router";
-import { Page, Layout } from "@shopify/polaris";
-import { useState } from "react";
-import { EmptyStatePage } from "../components/EmptyPage";
-import { ProductMetafield } from "../components/ProductMetafield";
-
+import { Page, Layout, Card } from "@shopify/polaris";
+import { useEffect, useState } from "react";
+import { ProductsList } from "../components/ProductList";
+import { GET_NEXT_PRODUCTS, GET_PREV_PRODUCTS } from "../shopify/shopify-api";
+import Pagination from "../components/Pagination";
 const Products = () => {
-  const [selection, setSelection] = useState([]);
+  const [inputData, setInputData] = useState({});
+  const [queryValue, setQueryValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [getNextProducts] = useLazyQuery(GET_NEXT_PRODUCTS, {
+    fetchPolicy: "network-only",
+    errorPolicy: "all",
+  });
+  const [getPrevProducts] = useLazyQuery(GET_PREV_PRODUCTS, {
+    fetchPolicy: "network-only",
+    errorPolicy: "all",
+  });
+  useEffect(() => {
+    setLoading(true);
+    const getData = async () => {
+      const { data } = await getNextProducts({
+        variables: { first: 10, query: "" },
+      });
+      setLoading(loading);
+      setInputData(data);
+    };
+    getData();
+  }, []);
   return (
     <Page
-      title="Product"
+      title="Products"
       breadcrumbs={[{ onAction: () => navigate("/") }]}
       fullWidth
     >
-      {selection?.length > 0 ? (
-        <ProductMetafield productIds={selection[0]} />
-      ) : (
-        <EmptyStatePage setSelection={setSelection} />
-      )}
+      <Layout>
+        <Layout.Section>
+          <Card>
+            {inputData && (
+              <ProductsList
+                data={inputData}
+                setQueryValue={setQueryValue}
+                queryValue={queryValue}
+                getNextProducts={getNextProducts}
+                setInputData={setInputData}
+                loading={loading}
+              />
+            )}
+          </Card>
+        </Layout.Section>
+      </Layout>
+      <Pagination
+        inputData={inputData}
+        getNextProducts={getNextProducts}
+        getPrevProducts={getPrevProducts}
+        setLoading={setLoading}
+        setInputData={setInputData}
+        queryValue={queryValue}
+      />
     </Page>
   );
 };

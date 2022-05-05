@@ -1,5 +1,12 @@
 import { useMutation, useQuery } from "@apollo/client";
-import { Layout, Page, TextField, Card, Button } from "@shopify/polaris";
+import {
+  Layout,
+  TextField,
+  Card,
+  Button,
+  Spinner,
+  Page,
+} from "@shopify/polaris";
 import Table from "../modules/Table";
 import { DeleteMajor } from "@shopify/polaris-icons";
 import { useEffect, useState } from "react";
@@ -9,12 +16,18 @@ import {
   UPDATE_METAFIELDS,
   DELETE_METAFIELD,
 } from "../shopify/shopify-api";
-
+import { navigate } from "@reach/router";
 import { isEmpty } from "lodash";
-export function ProductMetafield({ productIds }) {
+import { getTimer } from "../../utils";
+import { useParams } from "@reach/router";
+
+export function ProductMetafield() {
+  const { id } = useParams();
+  const productIds = "gid://shopify/Product/" + id;
   const [mtfData, setMtfData] = useState([]);
   const [errorMessageValue, setErrorMessageValue] = useState([]);
   const [active, setActive] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { data } = useQuery(GET_METAFIELD_PRODUCT_BY_ID, {
     variables: {
       id: productIds,
@@ -23,11 +36,15 @@ export function ProductMetafield({ productIds }) {
     errorPolicy: "all",
   });
   useEffect(() => {
-    if (data) {
+    if (data && error == undefined) {
       let inputData = data.product.metafields.edges.map((item) => ({
         ...item.node,
+        time: getTimer(item.node.updatedAt),
       }));
-      setMtfData(inputData);
+      const sortingData = inputData.sort(
+        (first, second) => second.time - first.time
+      );
+      setMtfData(sortingData);
     }
   }, [data]);
   const inputMetafield = mtfData.map((item) => ({
@@ -38,7 +55,7 @@ export function ProductMetafield({ productIds }) {
     value: item.value,
   }));
 
-  const [updateMtf, { loading, error }] = useMutation(UPDATE_METAFIELDS, {
+  const [updateMtf, { error }] = useMutation(UPDATE_METAFIELDS, {
     variables: {
       metafields: inputMetafield,
     },
@@ -54,6 +71,7 @@ export function ProductMetafield({ productIds }) {
   };
 
   const handleSave = async () => {
+    setLoading(true);
     try {
       const { data } = await updateMtf();
       if (!isEmpty(data.metafieldsSet?.userErrors)) {
@@ -65,6 +83,7 @@ export function ProductMetafield({ productIds }) {
         setErrorMessageValue([]);
         setMtfData(data.metafieldsSet.metafields);
       }
+      setLoading(false);
     } catch (error) {
       console.log(error);
     }
@@ -77,11 +96,19 @@ export function ProductMetafield({ productIds }) {
     setMtfData(filterData);
   };
   return (
-    <>
+    <Page
+      fullWidth
+      breadcrumbs={[{ onAction: () => navigate("/products") }]}
+      title={data?.product?.title}
+    >
       <Layout>
         <Layout.Section>
           <Card
-            primaryFooterAction={{ content: "Save", onAction: handleSave }}
+            primaryFooterAction={{
+              content: "Save",
+              onAction: handleSave,
+              loading: loading && <Spinner size="small" />,
+            }}
             actions={[
               {
                 content: "Add metafield",
@@ -126,7 +153,9 @@ export function ProductMetafield({ productIds }) {
                       </td>
                       <td>
                         <TextField
-                          multiline
+                          multiline={
+                            item.type === "multi_line_text_field" ? true : false
+                          }
                           value={item.value}
                           onChange={(v) => handleChange("value", v, key)}
                           error={
@@ -158,6 +187,6 @@ export function ProductMetafield({ productIds }) {
           mtfData={mtfData}
         />
       )}
-    </>
+    </Page>
   );
 }

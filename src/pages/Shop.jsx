@@ -11,6 +11,7 @@ import {
 import MetafieldModal from "../components/MetafieldModal";
 import { isEmpty } from "lodash";
 import { navigate } from "@reach/router";
+import { getTimer } from "../../utils";
 
 export function Shop() {
   const [mtfData, setMtfData] = useState([]);
@@ -18,13 +19,18 @@ export function Shop() {
   const [active, setActive] = useState(false);
   const { data, error } = useQuery(GET_SHOP_METAFIELD, {
     fetchPolicy: "network-only",
+    errorPolicy: "all",
   });
   useEffect(() => {
-    if (data) {
+    if (data && error == undefined) {
       let inputData = data.shop.metafields.edges.map((item) => ({
         ...item.node,
+        time: getTimer(item.node.updatedAt),
       }));
-      setMtfData(inputData);
+      const sortingData = inputData.sort(
+        (first, second) => second.time - first.time
+      );
+      setMtfData(sortingData);
     }
   }, [data]);
   const inputMetafield = mtfData.map((item) => ({
@@ -65,7 +71,6 @@ export function Shop() {
       console.log(error);
     }
   };
-
   const handleDelete = (_id) => {
     deleteMtf({
       variables: { input: { id: _id } },
@@ -135,7 +140,9 @@ export function Shop() {
                               (item) => Number(item.field[1]) === key
                             )[0]?.message
                           }
-                          multiline={1}
+                          multiline={
+                            item.type === "multi_line_text_field" ? true : false
+                          }
                         />
                       </td>
                       <td>

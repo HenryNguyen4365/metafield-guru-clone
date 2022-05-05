@@ -6,9 +6,10 @@ import {
 } from "@apollo/client";
 import {
   Provider as AppBridgeProvider,
+  TitleBar,
   useAppBridge,
 } from "@shopify/app-bridge-react";
-import { authenticatedFetch } from "@shopify/app-bridge-utils";
+import { authenticatedFetch, getSessionToken } from "@shopify/app-bridge-utils";
 import { Redirect } from "@shopify/app-bridge/actions";
 import { AppProvider as PolarisProvider, Frame } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
