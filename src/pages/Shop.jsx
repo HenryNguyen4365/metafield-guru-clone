@@ -1,22 +1,33 @@
 import { useMutation, useQuery } from "@apollo/client";
-import { Layout, Page, TextField, Card, Button } from "@shopify/polaris";
+import {
+  Layout,
+  Page,
+  TextField,
+  Card,
+  Button,
+  Spinner,
+} from "@shopify/polaris";
 import Table from "../modules/Table";
 import { DeleteMajor } from "@shopify/polaris-icons";
 import { useEffect, useState } from "react";
-import {
-  GET_SHOP_METAFIELD,
-  UPDATE_METAFIELDS,
-  DELETE_METAFIELD,
-} from "../shopify/shopify-api";
+import { GET_SHOP_METAFIELD, UPDATE_METAFIELDS } from "../shopify/shopify-api";
 import MetafieldModal from "../components/MetafieldModal";
 import { isEmpty } from "lodash";
 import { navigate } from "@reach/router";
 import { getTimer } from "../../utils";
+import MultiFields from "../modules/MultiFields";
+import DeleteModal from "../components/DeleteModal";
+import { useNavigate } from "react-router-dom";
+import { History } from "@shopify/app-bridge/actions";
 
-export function Shop() {
+export function Shop({ history }) {
   const [mtfData, setMtfData] = useState([]);
   const [errorMessageValue, setErrorMessageValue] = useState([]);
   const [active, setActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeDeleteModal, setActiveDeleteModal] = useState(false);
+  const [idDelete, setIdDelete] = useState("");
+  const navigateTo = useNavigate();
   const { data, error } = useQuery(GET_SHOP_METAFIELD, {
     fetchPolicy: "network-only",
     errorPolicy: "all",
@@ -25,7 +36,7 @@ export function Shop() {
     if (data && error == undefined) {
       let inputData = data.shop.metafields.edges.map((item) => ({
         ...item.node,
-        time: getTimer(item.node.updatedAt),
+        time: getTimer(item.node.createdAt),
       }));
       const sortingData = inputData.sort(
         (first, second) => second.time - first.time
@@ -46,8 +57,6 @@ export function Shop() {
     },
   });
 
-  const [deleteMtf] = useMutation(DELETE_METAFIELD);
-
   const handleChange = (key, v, index) => {
     let metafieldItem = [];
     metafieldItem = [...mtfData];
@@ -56,6 +65,7 @@ export function Shop() {
   };
 
   const handleSave = async () => {
+    setLoading(true);
     try {
       const { data } = await updateMtf();
       if (!isEmpty(data.metafieldsSet?.userErrors)) {
@@ -67,28 +77,33 @@ export function Shop() {
         setErrorMessageValue([]);
         setMtfData(data.metafieldsSet.metafields);
       }
+      setLoading(false);
     } catch (error) {
       console.log(error);
     }
   };
-  const handleDelete = (_id) => {
-    deleteMtf({
-      variables: { input: { id: _id } },
-    });
-    const filterData = mtfData.filter((val) => val.id !== _id);
-    setMtfData(filterData);
-  };
   return (
     <Page
       fullWidth
-      breadcrumbs={[{ onAction: () => navigate("/") }]}
+      breadcrumbs={[
+        {
+          onAction: () => {
+            navigateTo("/");
+            history.dispatch(History.Action.PUSH, `/`);
+          },
+        },
+      ]}
       title="Shop"
     >
       <div style={{ marginBottom: "50px" }}></div>
       <Layout>
         <Layout.Section>
           <Card
-            primaryFooterAction={{ content: "Save", onAction: handleSave }}
+            primaryFooterAction={{
+              content: "Save",
+              onAction: handleSave,
+              loading: loading && <Spinner size="small" />,
+            }}
             actions={[
               {
                 content: "Add metafield",
@@ -107,9 +122,9 @@ export function Shop() {
                 </tr>
               </thead>
               <tbody>
-                {mtfData?.map((item, key) => {
+                {mtfData?.map((item, index) => {
                   return (
-                    <tr key={key}>
+                    <tr key={index}>
                       <td>
                         <TextField
                           value={item.type}
@@ -132,25 +147,36 @@ export function Shop() {
                         />
                       </td>
                       <td>
-                        <TextField
-                          value={item.value}
-                          onChange={(v) => handleChange("value", v, key)}
-                          error={
+                        <MultiFields
+                          mtfItemData={item}
+                          index={index}
+                          errorMessageValue={
                             errorMessageValue.filter(
-                              (item) => Number(item.field[1]) === key
+                              (item) => Number(item.field[1]) === index
                             )[0]?.message
                           }
-                          multiline={
-                            item.type === "multi_line_text_field" ? true : false
-                          }
+                          setMtfData={setMtfData}
+                          mtfData={mtfData}
                         />
                       </td>
                       <td>
                         <Button
                           icon={DeleteMajor}
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => {
+                            setActiveDeleteModal(true);
+                            setIdDelete(item.id);
+                          }}
                         ></Button>
                       </td>
+                      {activeDeleteModal && (
+                        <DeleteModal
+                          id={idDelete}
+                          mtfData={mtfData}
+                          setMtfData={setMtfData}
+                          setActiveDeleteModal={setActiveDeleteModal}
+                          activeDeleteModal={activeDeleteModal}
+                        />
+                      )}
                     </tr>
                   );
                 })}

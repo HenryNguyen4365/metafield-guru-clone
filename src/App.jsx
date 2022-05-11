@@ -6,7 +6,6 @@ import {
 } from "@apollo/client";
 import {
   Provider as AppBridgeProvider,
-  TitleBar,
   useAppBridge,
 } from "@shopify/app-bridge-react";
 import { authenticatedFetch, getSessionToken } from "@shopify/app-bridge-utils";
@@ -15,23 +14,25 @@ import { AppProvider as PolarisProvider, Frame } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
 import "@shopify/polaris/build/esm/styles.css";
 import AppRoute from "./routes";
-
+import { BrowserRouter as Router } from "react-router-dom";
 export default function App() {
   return (
     <PolarisProvider i18n={translations}>
-      <AppBridgeProvider
-        config={{
-          apiKey: process.env.SHOPIFY_API_KEY,
-          host: new URL(location).searchParams.get("host"),
-          forceRedirect: true,
-        }}
-      >
-        <MyProvider>
-          <Frame>
-            <AppRoute />
-          </Frame>
-        </MyProvider>
-      </AppBridgeProvider>
+      <Router>
+        <AppBridgeProvider
+          config={{
+            apiKey: process.env.SHOPIFY_API_KEY,
+            host: new URL(location).searchParams.get("host"),
+            forceRedirect: true,
+          }}
+        >
+          <MyProvider>
+            <Frame>
+              <AppRoute />
+            </Frame>
+          </MyProvider>
+        </AppBridgeProvider>
+      </Router>
     </PolarisProvider>
   );
 }

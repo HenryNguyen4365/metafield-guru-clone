@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { ProductsList } from "../components/ProductList";
 import { GET_NEXT_PRODUCTS, GET_PREV_PRODUCTS } from "../shopify/shopify-api";
 import Pagination from "../components/Pagination";
-const Products = () => {
+import { useNavigate } from "react-router-dom";
+import { History } from "@shopify/app-bridge/actions";
+const Products = ({ history }) => {
+  const navigateTo = useNavigate();
   const [inputData, setInputData] = useState({});
   const [queryValue, setQueryValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,7 @@ const Products = () => {
   useEffect(() => {
     setLoading(true);
     const getData = async () => {
-      const { data } = await getNextProducts({
+      const { data, loading } = await getNextProducts({
         variables: { first: 10, query: "" },
       });
       setLoading(loading);
@@ -31,7 +34,14 @@ const Products = () => {
   return (
     <Page
       title="Products"
-      breadcrumbs={[{ onAction: () => navigate("/") }]}
+      breadcrumbs={[
+        {
+          onAction: () => {
+            navigateTo("/");
+            history.dispatch(History.Action.PUSH, "/");
+          },
+        },
+      ]}
       fullWidth
     >
       <Layout>
@@ -39,12 +49,14 @@ const Products = () => {
           <Card>
             {inputData && (
               <ProductsList
+                history={history}
                 data={inputData}
                 setQueryValue={setQueryValue}
                 queryValue={queryValue}
                 getNextProducts={getNextProducts}
                 setInputData={setInputData}
                 loading={loading}
+                setLoading={setLoading}
               />
             )}
           </Card>

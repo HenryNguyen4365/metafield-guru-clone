@@ -2,6 +2,14 @@ import { gql } from "@apollo/client";
 export const GET_METAFIELD_PRODUCT_BY_ID = gql`
   query getProductMetafields($id: ID!) {
     product(id: $id) {
+      images(first: 5) {
+        edges {
+          node {
+            url
+          }
+        }
+      }
+      id
       title
       metafields(first: 30) {
         edges {
@@ -12,9 +20,18 @@ export const GET_METAFIELD_PRODUCT_BY_ID = gql`
             key
             updatedAt
             id
+            createdAt
           }
         }
       }
+    }
+  }
+`;
+
+export const GET_VARIANT_BY_ID = gql`
+  query getVariant($id: ID!) {
+    productVariant(id: $id) {
+      displayName
     }
   }
 `;
@@ -93,6 +110,7 @@ export const GET_SHOP_METAFIELD = gql`
             type
             id
             updatedAt
+            createdAt
           }
         }
       }
@@ -169,6 +187,60 @@ export const GET_PREV_PRODUCTS = gql`
       pageInfo {
         hasNextPage
         hasPreviousPage
+      }
+    }
+  }
+`;
+
+export const GET_FILES = gql`
+  query getFiles {
+    files(first: 3) {
+      edges {
+        node {
+          createdAt
+          alt
+          ... on GenericFile {
+            id
+            originalFileSize
+            url
+          }
+          ... on MediaImage {
+            id
+            image {
+              id
+              originalSrc: url
+              width
+              height
+            }
+          }
+          ... on Video {
+            id
+            duration
+            preview {
+              status
+              image {
+                id
+                width
+                height
+                url
+              }
+            }
+            originalSource {
+              url
+              width
+              height
+              format
+              mimeType
+            }
+            sources {
+              url
+              width
+              height
+              format
+              mimeType
+            }
+          }
+        }
       }
     }
   }

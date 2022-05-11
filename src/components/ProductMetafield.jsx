@@ -14,20 +14,28 @@ import MetafieldModal from "./MetafieldModal";
 import {
   GET_METAFIELD_PRODUCT_BY_ID,
   UPDATE_METAFIELDS,
-  DELETE_METAFIELD,
 } from "../shopify/shopify-api";
-import { navigate } from "@reach/router";
 import { isEmpty } from "lodash";
 import { getTimer } from "../../utils";
-import { useParams } from "@reach/router";
-
+import MultiFields from "../modules/MultiFields";
+import DeleteModal from "./DeleteModal";
+import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { ResourcePicker, useAppBridge } from "@shopify/app-bridge-react";
+import { History } from "@shopify/app-bridge/actions";
 export function ProductMetafield() {
+  const app = useAppBridge();
+  const history = History.create(app);
   const { id } = useParams();
   const productIds = "gid://shopify/Product/" + id;
   const [mtfData, setMtfData] = useState([]);
+  const [products, setProducts] = useState([]);
   const [errorMessageValue, setErrorMessageValue] = useState([]);
   const [active, setActive] = useState(false);
+  const [idDelete, setIdDelete] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeDeleteModal, setActiveDeleteModal] = useState(false);
+  const navigateTo = useNavigate();
   const { data } = useQuery(GET_METAFIELD_PRODUCT_BY_ID, {
     variables: {
       id: productIds,
@@ -35,11 +43,12 @@ export function ProductMetafield() {
     fetchPolicy: "network-only",
     errorPolicy: "all",
   });
+
   useEffect(() => {
-    if (data && error == undefined) {
+    if (data) {
       let inputData = data.product.metafields.edges.map((item) => ({
         ...item.node,
-        time: getTimer(item.node.updatedAt),
+        time: getTimer(item.node.createdAt),
       }));
       const sortingData = inputData.sort(
         (first, second) => second.time - first.time
@@ -54,26 +63,18 @@ export function ProductMetafield() {
     type: item.type,
     value: item.value,
   }));
-
+  console.log(inputMetafield);
   const [updateMtf, { error }] = useMutation(UPDATE_METAFIELDS, {
     variables: {
       metafields: inputMetafield,
     },
   });
 
-  const [deleteMtf] = useMutation(DELETE_METAFIELD);
-
-  const handleChange = (key, v, index) => {
-    let metafieldItem = [];
-    metafieldItem = [...mtfData];
-    metafieldItem[index] = { ...metafieldItem[index], [key]: v };
-    setMtfData(metafieldItem);
-  };
-
   const handleSave = async () => {
     setLoading(true);
     try {
       const { data } = await updateMtf();
+      console.log(data);
       if (!isEmpty(data.metafieldsSet?.userErrors)) {
         const err = data.metafieldsSet?.userErrors;
         setErrorMessageValue(
@@ -88,17 +89,18 @@ export function ProductMetafield() {
       console.log(error);
     }
   };
-  const handleDelete = (_id) => {
-    deleteMtf({
-      variables: { input: { id: _id } },
-    });
-    const filterData = mtfData.filter((val) => val.id !== _id);
-    setMtfData(filterData);
-  };
+
   return (
     <Page
       fullWidth
-      breadcrumbs={[{ onAction: () => navigate("/products") }]}
+      breadcrumbs={[
+        {
+          onAction: () => {
+            navigateTo("/products");
+            history.dispatch(History.Action.PUSH, `/products`);
+          },
+        },
+      ]}
       title={data?.product?.title}
     >
       <Layout>
@@ -127,48 +129,40 @@ export function ProductMetafield() {
                 </tr>
               </thead>
               <tbody>
-                {mtfData?.map((item, key) => {
+                {mtfData?.map((item, index) => {
                   return (
-                    <tr key={key}>
+                    <tr key={index}>
                       <td>
-                        <TextField
-                          value={item.type}
-                          onChange={(v) => handleChange("type", v, key)}
-                          disabled
-                        />
+                        <TextField value={item.type} disabled />
                       </td>
                       <td>
-                        <TextField
-                          value={item.namespace}
-                          onChange={(v) => handleChange("namespace", v, key)}
-                          disabled
-                        />
+                        <TextField value={item.namespace} disabled />
                       </td>
                       <td>
-                        <TextField
-                          value={item.key}
-                          onChange={(v) => handleChange("key", v, key)}
-                          disabled
-                        />
+                        <TextField value={item.key} disabled />
                       </td>
                       <td>
-                        <TextField
-                          multiline={
-                            item.type === "multi_line_text_field" ? true : false
-                          }
-                          value={item.value}
-                          onChange={(v) => handleChange("value", v, key)}
-                          error={
+                        <MultiFields
+                          mtfItemData={item}
+                          index={index}
+                          errorMessageValue={
                             errorMessageValue.filter(
-                              (item) => Number(item.field[1]) === key
+                              (item) => Number(item.field[1]) === index
                             )[0]?.message
                           }
+                          setMtfData={setMtfData}
+                          mtfData={mtfData}
+                          products={products}
+                          setProducts={setProducts}
                         />
                       </td>
                       <td>
                         <Button
                           icon={DeleteMajor}
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => {
+                            setActiveDeleteModal(true);
+                            setIdDelete(item.id);
+                          }}
                         ></Button>
                       </td>
                     </tr>
@@ -176,6 +170,15 @@ export function ProductMetafield() {
                 })}
               </tbody>
             </Table>
+            {activeDeleteModal && (
+              <DeleteModal
+                id={idDelete}
+                mtfData={mtfData}
+                setMtfData={setMtfData}
+                setActiveDeleteModal={setActiveDeleteModal}
+                activeDeleteModal={activeDeleteModal}
+              />
+            )}
           </Card>
         </Layout.Section>
       </Layout>
@@ -185,6 +188,7 @@ export function ProductMetafield() {
           id={productIds}
           setMtfData={setMtfData}
           mtfData={mtfData}
+          setProducts={setProducts}
         />
       )}
     </Page>

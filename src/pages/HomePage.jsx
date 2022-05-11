@@ -2,17 +2,13 @@ import { Page, Card, Layout, Button } from "@shopify/polaris";
 import { navigate } from "@reach/router";
 import { ResourcePicker } from "@shopify/app-bridge-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { History } from "@shopify/app-bridge/actions";
 
-const HomePage = () => {
+const HomePage = ({ history }) => {
   const [open, setOpen] = useState(false);
-  const handleSelection = (resources) => {
-    setOpen(false);
-    navigate(
-      `/products/metafields/${resources.selection
-        .map((product) => product.id)[0]
-        .replace("gid://shopify/Product/", "")}`
-    );
-  };
+  const navigateTo = useNavigate();
+
   return (
     <Page title="Metafields">
       <Layout>
@@ -26,7 +22,10 @@ const HomePage = () => {
                 alignItems: "center",
                 cursor: "pointer",
               }}
-              onClick={() => navigate("/products")}
+              onClick={() => {
+                navigateTo("/products");
+                history.dispatch(History.Action.PUSH, "/products");
+              }}
             >
               <img
                 src="https://www.creativefabrica.com/wp-content/uploads/2018/12/T-shirt-icon-by-rudezstudio-2-580x386.jpg"
@@ -42,9 +41,6 @@ const HomePage = () => {
               </p>
             </div>
           </Card>
-          {/* <div style={{ display: "flex", width: "100%", justifyContent: "center", alignItems: "center", marginTop: "10px"}}>
-              <Button onClick={() => setOpen(true)}>Select Product</Button>
-            </div> */}
         </Layout.Section>
         <Layout.Section oneHalf>
           <Card sectioned>
@@ -56,7 +52,10 @@ const HomePage = () => {
                 alignItems: "center",
                 cursor: "pointer",
               }}
-              onClick={() => navigate("/shop")}
+              onClick={() => {
+                navigateTo("/shop");
+                history.dispatch(History.Action.PUSH, "/shop");
+              }}
             >
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Shop.svg/1200px-Shop.svg.png"
@@ -69,14 +68,6 @@ const HomePage = () => {
           </Card>
         </Layout.Section>
       </Layout>
-      {/* <ResourcePicker
-        resourceType="Product"
-        showVariants={false}
-        allowMultiple={false}
-        open={open}
-        onSelection={(resources) => handleSelection(resources)}
-        onCancel={() => setOpen(false)}
-      /> */}
     </Page>
   );
 };

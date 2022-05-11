@@ -1,4 +1,4 @@
-import { navigate } from "@reach/router";
+import { ResourcePicker } from "@shopify/app-bridge-react";
 import {
   ResourceList,
   TextStyle,
@@ -8,6 +8,8 @@ import {
 } from "@shopify/polaris";
 import ScreenLoading from "./ScreenLoading";
 import Search from "./Search";
+import { useNavigate } from "react-router-dom";
+import { History } from "@shopify/app-bridge/actions";
 export function ProductsList({
   data,
   setQueryValue,
@@ -15,7 +17,10 @@ export function ProductsList({
   getNextProducts,
   setInputData,
   loading,
+  setLoading,
+  history,
 }) {
+  const navigateTo = useNavigate();
   const inputData = data?.products?.edges?.map((item) => item.node);
   return (
     <>
@@ -24,6 +29,7 @@ export function ProductsList({
         setQueryValue={setQueryValue}
         getNextProducts={getNextProducts}
         setInputData={setInputData}
+        setLoading={setLoading}
       />
       {loading ? (
         <ScreenLoading />
@@ -48,14 +54,21 @@ export function ProductsList({
                 id={item?.id}
                 media={media}
                 accessibilityLabel={`View details for ${item?.title}`}
-                onClick={() =>
-                  navigate(
+                onClick={() => {
+                  navigateTo(
                     `/products/metafields/${item?.id.replace(
                       "gid://shopify/Product/",
                       ""
                     )}`
-                  )
-                }
+                  );
+                  history.dispatch(
+                    History.Action.PUSH,
+                    `/products/metafields/${item?.id.replace(
+                      "gid://shopify/Product/",
+                      ""
+                    )}`
+                  );
+                }}
               >
                 <Stack>
                   <Stack.Item fill>
